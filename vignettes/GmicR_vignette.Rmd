@@ -179,18 +179,19 @@ head(GMIC_Builder$Query)
 
 
 This function constructs a library for gene ontology enrichment, which will
-be used for module naming with the GO_Module_NameR function. Both functions 
-were inspired by: https://www.bioconductor.org/packages/devel/bioc/vignettes/CVE/inst/doc/WGCNA_from_TCGA_RNAseq.html
+be used for module naming with the GO_Module_NameR function. 
+
 ```{r GO enrichment, echo=TRUE}
+
 GMIC_Builder<-GSEAGO_Builder(GMIC_Builder,
-  species = "Homo sapiens", ontology = "BP")
+  species = "Homo sapiens", ontology = "BP", no_cores = 1)
 
 ```
 
 GO_Module_NameR will assign a name to each module based on ontology size. A
 smaller cut off size will generate a more specific term.
 ```{r GO module names, echo=TRUE}
-GMIC_Builder<-GO_Module_NameR(GMIC_Builder, cutoff_size = 100)
+GMIC_Builder<-GO_Module_NameR(GMIC_Builder)
 ```
 
 This table provides a summary of detected modules. "Freq" indicates the total 
@@ -245,8 +246,16 @@ equivalent score (bde), for this example we will use the Bayesian Dirichlet
 sparse score (bds). For sparse data, such as the data used in this example,
 the bds score is better suited: https://arxiv.org/abs/1605.03884.
 ```{r bnlearning, eval=FALSE, echo=TRUE}
+
+no_cores<-1 # multicore support
+cl<-parallel::makeCluster(1)
+
+
 GMIC_net<-bn_tabu_gen(GMIC_Builder_disc, 
+  cluster = cl, debug = FALSE, 
   bootstraps_replicates = 50, score = "bds")
+
+parallel::stopCluster(cl) # stop cluster
 ```
 
 ## Detecting arcs for inversly related nodes

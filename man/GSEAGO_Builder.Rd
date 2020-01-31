@@ -4,13 +4,21 @@
 \alias{GSEAGO_Builder}
 \title{GO enrichment for module names}
 \usage{
-GSEAGO_Builder(Auto_WGCNA_OUTPUT, species = "Homo sapiens",
-  ontology = "BP", GO_conditional = FALSE, colname_correct = TRUE)
+GSEAGO_Builder(
+  Auto_WGCNA_OUTPUT,
+  species = "Homo sapiens",
+  no_cores = 4,
+  ontology = "BP",
+  GO_conditional = FALSE,
+  colname_correct = TRUE
+)
 }
 \arguments{
 \item{Auto_WGCNA_OUTPUT}{output from Auto_WGCNA function.}
 
 \item{species}{either 'Homo sapiens' (default) or 'Mus musculus'.}
+
+\item{no_cores}{Number of cores to use. Default = 4.}
 
 \item{ontology}{string either 'BP'(Biological Process; default), 
 'CC'(Cellular Component),
@@ -36,4 +44,13 @@ GO enrichment for module names
 }
 \note{
 gene names must be official gene symbol
+}
+\examples{
+
+GMIC_Builder_dir<-system.file("extdata", "GMIC_Builder.Rdata", 
+                              package = "GmicR", mustWork = TRUE)
+load(GMIC_Builder_dir)
+GMIC_Builder$GSEAGO_Builder_Output<-NULL
+Test_GMIC_Builder<-GSEAGO_Builder(GMIC_Builder, no_cores = 1)
+summary(Test_GMIC_Builder$GSEAGO_Builder_Output)
 }

@@ -13,6 +13,7 @@
     #' index R^2.
     #' Default is 0.80.
     #' @inheritParams WGCNA::blockwiseModules
+    #' @inheritParams WGCNA::pickSoftThreshold
     #' @seealso \code{\link[WGCNA]{blockwiseModules}}
     #' @inheritParams WGCNA::adjacency
     #' @seealso \code{\link[WGCNA]{adjacency}}
@@ -26,13 +27,14 @@
     #' sample_dat_dir<-system.file("extdata", "sample_dat.Rdata", 
     #' package = "GmicR", mustWork = TRUE)
     #' load(sample_dat_dir)
-    #' # GMIC_Builder<-Auto_WGCNA(sample_dat, mergeCutHeight = 0.35, 
-    #' # minModuleSize = 10)
+    #' GMIC_Builder<-Auto_WGCNA(sample_dat, mergeCutHeight = 0.35, 
+    #' minModuleSize = 10)
     
     Auto_WGCNA<-function(datExpr, colname_correct = TRUE, minModuleSize = 10, 
     deepSplit = 4, networkType = "signed hybrid", TOMType = "unsigned", 
     corFnc = "bicor", mergeCutHeight = 0.25, sft_RsquaredCut = 0.85,
-    reassignThreshold=1e-6, maxBlockSize = 25000){
+    removeFirst = FALSE,
+    reassignThreshold=1e-6, maxBlockSize = 25000,nThreads=NULL){
     
     # replacing . with - in columnn names
     if(isTRUE(colname_correct)){
@@ -47,10 +49,12 @@
     
     # soft power --------------------------------------------------------------
     powers = c(seq(1,10), seq(from = 12, to=20, by=2))
-    
+    allowWGCNAThreads(nThreads = nThreads)
     sft = pickSoftThreshold(datExpr, networkType = networkType,
     corFnc = corFnc, RsquaredCut = sft_RsquaredCut,
+    removeFirst=removeFirst,
     powerVector = powers, verbose = 5)
+    disableWGCNAThreads()
     
     # soft thresholds
     plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
@@ -66,7 +70,7 @@
     # softpower estimation ----------------------------------------------------
     softPower<-  sft$powerEstimate
     
-    {enableWGCNAThreads()
+    {allowWGCNAThreads(nThreads=nThreads)
     
     net = blockwiseModules(datExpr, power = softPower,
     TOMType = TOMType, networkType = networkType,
@@ -95,7 +99,9 @@
     rownames(MEs)<-rownames(datExpr)
     
     #calculate dissimilarity of module eigengenes
+    allowWGCNAThreads(nThreads=nThreads)
     MEDiss = 1-cor(MEs);
+    disableWGCNAThreads()
     
     #cluster module eigengenes
     METree = hclust(as.dist(MEDiss), method = 'average');
@@ -227,8 +233,8 @@
     Numeric_Pheno_scores = NULL,
     xCell_Signatures=NULL,
     ibreaks = 60){
-        
-        
+    
+    
     if(is.null(Numeric_Pheno_scores)){
     MEs<-Auto_WGCNA_OUTPUT$Network_Output$MEs
     }else if(!is.null(Numeric_Pheno_scores)){
@@ -238,8 +244,8 @@
     merged_dat$Row.names<-NULL
     MEs<-merged_dat
     }
-        
-        
+    
+    
     
     if(!is.null(Auto_WGCNA_OUTPUT)){
     MEs<-MEs

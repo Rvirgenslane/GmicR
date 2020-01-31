@@ -5,8 +5,13 @@
 \title{Discretizes biological assay data in preparation for bayensian network 
 learning}
 \usage{
-Data_Prep(Auto_WGCNA_OUTPUT = NULL, Remove_ME0 = FALSE,
-  Numeric_Pheno_scores = NULL, xCell_Signatures = NULL, ibreaks = 60)
+Data_Prep(
+  Auto_WGCNA_OUTPUT = NULL,
+  Remove_ME0 = FALSE,
+  Numeric_Pheno_scores = NULL,
+  xCell_Signatures = NULL,
+  ibreaks = 60
+)
 }
 \arguments{
 \item{Auto_WGCNA_OUTPUT}{R object generated from Auto_WGCNA function.}

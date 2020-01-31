@@ -16,8 +16,14 @@
     #' GMIC_Builder_disc_dir<-system.file("extdata", "GMIC_Builder_disc.Rdata", 
     #' package = "GmicR", mustWork = TRUE)
     #' load(GMIC_Builder_disc_dir)
-    #' GMIC_net<-bn_tabu_gen(GMIC_Builder_disc, 
+    #' 
+    #' no_cores<-1
+    #' cl<-parallel::makeCluster(no_cores)
+    #' 
+    #' GMIC_net<-bn_tabu_gen(GMIC_Builder_disc,
+    #' cluster = cl,
     #' bootstraps_replicates = 50, score = "bds")
+    #' parallel::stopCluster(cl)
     #' @inheritParams bnlearn::boot.strength
     #' @inheritParams bnlearn::tabu
     #' @return The learned bayesian network
@@ -25,11 +31,12 @@
     #' @seealso \code{\link[bnlearn]{hc}}
     #' @seealso \code{\link[bnlearn]{score}}
     #' @export
-
+    
     
     bn_tabu_gen<-function(Auto_WGCNA_OUTPUT,
     whitelist=NULL, blacklist=NULL,
     score = "bde", tabu = 50, iss = 10,
+    cluster=NULL,
     debug = TRUE, bootstraps_replicates = 500){
     
     data<-Auto_WGCNA_OUTPUT$disc_data
@@ -40,7 +47,7 @@
     prior = "uniform"}
     
     tabu_net_intscore <-boot.strength(data, R = bootstraps_replicates, 
-    algorithm = "tabu",
+    algorithm = "tabu",cluster=cluster,
     debug = debug, algorithm.args = list(score = score,
     whitelist = whitelist,
     blacklist = blacklist,
@@ -130,7 +137,7 @@
     
     #' Identifies arcs between nodes with inverse relationships
     #' @export
-    #' @importFrom gRain querygrain
+    #' @importFrom gRain querygrain grain.CPTspec
     #' @importFrom gRbase compile
     #' @param Output a data frame containing the output of 
     #' BN_Conditions function.
@@ -169,7 +176,7 @@
     row_ids<-rownames(query_arcs)
     
     query_nodes<-c(i, query_arcs$to)
-     
+    
     LOW<-data.frame(gRain::querygrain(j_L, nodes = query_nodes[-1]))
     HIGH<-data.frame(gRain::querygrain(j_H, nodes = query_nodes[-1]))
     

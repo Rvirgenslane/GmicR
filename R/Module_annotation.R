@@ -14,6 +14,7 @@
     #' @return a data.frame detailing the gene symbols for each module. Gene
     #' intramodularConnectivity may also be returned. If detected, hub genes are 
     #' annotated. 
+    #' @inheritParams WGCNA::blockwiseModules
     #' @export
     #' @examples 
     #' GMIC_Builder_dir<-system.file("extdata", "GMIC_Builder.Rdata", 
@@ -24,6 +25,7 @@
     
     
     Query_Prep<-function(Auto_WGCNA_OUTPUT, numGenes=500, Find_hubs=FALSE,
+    nThreads=NULL,
     calculate_intramodularConnectivity=TRUE){
     
     datExpr<-Auto_WGCNA_OUTPUT$Network_Output$datExpr
@@ -34,8 +36,10 @@
     networkType<- Auto_WGCNA_OUTPUT$Input_Parameters$networkType
     
     if(calculate_intramodularConnectivity== TRUE){
+    allowWGCNAThreads(nThreads = nThreads)
     adj_mat<-adjacency(datExpr, type = networkType, power = softPower, 
     corFnc = corFnc)
+    disableWGCNAThreads()
     ConnectivityMeasures<-intramodularConnectivity(adj_mat, colors=modules, 
     scaleByMax = TRUE)
     
@@ -121,6 +125,8 @@
     #' @importFrom AnnotationDbi toTable GOAllFrame GOFrame
     #' @importFrom Category GSEAGOHyperGParams
     #' @import GOstats
+    #' @import foreach
+    #' @param no_cores Number of cores to use. Default = 4.
     #' @param colname_correct a logical value. If TRUE (default), "." in gene 
     #' names will be replaced
     #' with "-". This corrects a name change that is induced by R when creating a 
@@ -140,9 +146,18 @@
     #' @note
     #' gene names must be official gene symbol
     #' @export
+    #' @examples 
+    #' 
+    #' GMIC_Builder_dir<-system.file("extdata", "GMIC_Builder.Rdata", 
+    #'                               package = "GmicR", mustWork = TRUE)
+    #' load(GMIC_Builder_dir)
+    #' GMIC_Builder$GSEAGO_Builder_Output<-NULL
+    #' Test_GMIC_Builder<-GSEAGO_Builder(GMIC_Builder, no_cores = 1)
+    #' summary(Test_GMIC_Builder$GSEAGO_Builder_Output)
     
     GSEAGO_Builder<-function(Auto_WGCNA_OUTPUT, species='Homo sapiens', 
-    ontology = 'BP', GO_conditional = FALSE,colname_correct = TRUE){
+    no_cores = 4, ontology = 'BP',
+    GO_conditional = FALSE,colname_correct = TRUE){
     
     datExpr<-Auto_WGCNA_OUTPUT$Network_Output$datExpr
     modules<-as.vector(Auto_WGCNA_OUTPUT$Network_Output$modules)
@@ -159,46 +174,56 @@
     # loading human gene set
     GO = AnnotationDbi::toTable(org.Hs.egGO); 
     SYMBOL = AnnotationDbi::toTable(org.Hs.egSYMBOL)
+    } else if(species=='Mus musculus'){
+    # GO for mouse
+    GO = AnnotationDbi::toTable(org.Mm.egGO); 
+    SYMBOL = AnnotationDbi::toTable(org.Mm.egSYMBOL)
+    } 
+    
+    
     GOdf = data.frame(GO$go_id, GO$Evidence,
     SYMBOL$symbol[match(GO$gene_id,SYMBOL$gene_id)])
     GOframe = AnnotationDbi::GOAllFrame(AnnotationDbi::GOFrame(GOdf, 
-    organism = 'Homo sapiens'))
+    organism = species))
     gsc <- GSEABase::GeneSetCollection(GOframe, 
     setType = GSEABase::GOCollection())
     
-    GSEAGO = vector('list',length(unique(modules)))
+    iterations <- length(unique(modules))
+    GSEAGO = vector('list',iterations)
+    GSEAGO<-setNames(GSEAGO, 0:(iterations-1))
     
-    for(i in 0:(length(unique(modules))-1)){
-    GSEAGO[[i+1]] = summary(hyperGTest(
-    Category::GSEAGOHyperGParams(name = 'Homo sapiens GO',
-    geneSetCollection = gsc, geneIds = colnames(datExpr)[modules==i],
+    # cores
+    cl <- parallel::makeCluster(no_cores)
+    doParallel::registerDoParallel(cl)
+    
+    GSEAGOL<-foreach(ex = names(GSEAGO)) %dopar%{
+    hyperGTest(
+    Category::GSEAGOHyperGParams(name = paste(species, "GO", sep = " "),
+    geneSetCollection = gsc, geneIds = colnames(datExpr)[modules==ex],
     universeGeneIds = ref_genes, ontology = ontology, pvalueCutoff = 0.05,
-    conditional = GO_conditional, testDirection = 'over')))
-    print(i)
-    }
-    
-    } else if(species=='Mus musculus'){
-    # load mouse gene set
-    GO = AnnotationDbi::toTable(org.Mm.egGO); 
-    SYMBOL = AnnotationDbi::toTable(org.Mm.egSYMBOL)
-    GOdf = data.frame(GO$go_id, GO$Evidence,
-    SYMBOL$symbol[match(GO$gene_id,SYMBOL$gene_id)])
-    GOframe = AnnotationDbi::GOAllFrame(AnnotationDbi::GOFrame(GOdf, 
-    organism = 'Mus musculus'))
-    gsc <- GSEABase::GeneSetCollection(GOframe,
-    setType = GSEABase::GOCollection())
-    
-    GSEAGO = vector('list',length(unique(modules)))
-    
-    for(i in 0:(length(unique(modules))-1)){
-    GSEAGO[[i+1]] = summary(hyperGTest(
-    Category::GSEAGOHyperGParams(name = 'Mus musculus GO',
-    geneSetCollection = gsc, geneIds = colnames(datExpr)[modules==i],
-    universeGeneIds = ref_genes, ontology = ontology, pvalueCutoff = 0.05,
-    conditional = GO_conditional, testDirection = 'over')))
-    print(i)
-    }
+    conditional = GO_conditional, testDirection = 'over'))
     } 
+    
+    parallel::stopCluster(cl)
+
+    #   
+    GSEAGO<-lapply(GSEAGOL, summary)
+    
+    df<-geneIds(gsc)
+    
+    for(ew in 1:length(GSEAGO) ){
+    geneIds_me = colnames(datExpr)[modules==(ew-1)]
+    meFrame<-GSEAGO[[ew]]
+    meFrame$Genes<-c(NA)
+    for(q in meFrame$GOBPID){
+    db_genes<-df[[q]]
+    common_ids<-db_genes[db_genes %in% geneIds_me]
+    meFrame[meFrame$GOBPID == q,]$Genes<-paste(common_ids, collapse="/")
+    }
+    GSEAGO[[ew]]<-meFrame
+    }
+    
+    
     
     
     # preparing lists for export ----------------------------------------------
@@ -211,7 +236,8 @@
     
     #' GO enrichment for module names
     #' @param Auto_WGCNA_OUTPUT object returned by GSEAGO_Builder function
-    #' @param cutoff_size integer indication the GO size cut off. Default is 100
+    #' @param cutoff_size integer indication the GO size cut off. If NULL 
+    #' (default) the term with the smallest Pvalue will be returned.
     #' @export
     #' @return a data.frame listing the GO name for each module. Additionally, 
     #' a table similar to the output of Query_Prep function is returned, appended 
@@ -221,9 +247,9 @@
     #' package = "GmicR", mustWork = TRUE)
     #' load(GMIC_Builder_dir)
     #' GMIC_Builder<-GO_Module_NameR(GMIC_Builder, cutoff_size = 100)
-
     
-    GO_Module_NameR<-function(Auto_WGCNA_OUTPUT, cutoff_size=100){
+    
+    GO_Module_NameR<-function(Auto_WGCNA_OUTPUT, cutoff_size=NULL){
     
     GSEAGO<-Auto_WGCNA_OUTPUT$GSEAGO_Builder_Output$GSEAGO
     modules<-Auto_WGCNA_OUTPUT$GSEAGO_Builder_Output$modules
@@ -231,11 +257,15 @@
     
     GO_module_name = rep(NA,length(unique(modules)))
     for (i in seq(1,length(unique(modules)))){
+    if(is.null(cutoff_size)){
     
+    GO_module_name[i] = GSEAGO[[i]][which.min(GSEAGO[[i]]$Pvalue),7]
+    } else if(!is.null(cutoff_size)){
     GO_module_name[i] =
     GSEAGO[[i]][GSEAGO[[i]]$Size<cutoff_size,
     ][which.max(GSEAGO[[i]][GSEAGO[[i]]$Size<cutoff_size,
     ]$Count==max(GSEAGO[[i]][GSEAGO[[i]]$Size<cutoff_size,]$Count)),7]
+    }
     }
     
     GO_module_name[1] = 'module 0'

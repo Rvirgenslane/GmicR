@@ -34,7 +34,7 @@ Module_selection_frame$GSEAGO_ID<-c(Module_selection_frame$modules+1)
 table_GSEAGO_query<-data.table::melt(GSEAGO_query,
 id.vars=c("GOBPID", "Pvalue", "OddsRatio", 
 "ExpCount", "Count", "Size", 
-"Term"))
+"Term","Genes"))
 table_GSEAGO_query$Module<-c(table_GSEAGO_query$L1-1)
 
 
@@ -51,7 +51,7 @@ table_GSEAGO_query$Module == Module_selection_frame[i,
 table_GSEAGO_query<-table_GSEAGO_query[c("Module_Name",
 "GOBPID", "Pvalue",
 "OddsRatio", "ExpCount", "Count", "Size", 
-"Term","Module")]
+"Term","Genes", "Module")]
 
 
 

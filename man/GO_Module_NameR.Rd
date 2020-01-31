@@ -4,12 +4,13 @@
 \alias{GO_Module_NameR}
 \title{GO enrichment for module names}
 \usage{
-GO_Module_NameR(Auto_WGCNA_OUTPUT, cutoff_size = 100)
+GO_Module_NameR(Auto_WGCNA_OUTPUT, cutoff_size = NULL)
 }
 \arguments{
 \item{Auto_WGCNA_OUTPUT}{object returned by GSEAGO_Builder function}
 
-\item{cutoff_size}{integer indication the GO size cut off. Default is 100}
+\item{cutoff_size}{integer indication the GO size cut off. If NULL 
+(default) the term with the smallest Pvalue will be returned.}
 }
 \value{
 a data.frame listing the GO name for each module. Additionally, 

@@ -4,10 +4,21 @@
 \alias{Auto_WGCNA}
 \title{Carries out WGCNA with default settings or custom settings}
 \usage{
-Auto_WGCNA(datExpr, colname_correct = TRUE, minModuleSize = 10,
-  deepSplit = 4, networkType = "signed hybrid", TOMType = "unsigned",
-  corFnc = "bicor", mergeCutHeight = 0.25, sft_RsquaredCut = 0.85,
-  reassignThreshold = 1e-06, maxBlockSize = 25000)
+Auto_WGCNA(
+  datExpr,
+  colname_correct = TRUE,
+  minModuleSize = 10,
+  deepSplit = 4,
+  networkType = "signed hybrid",
+  TOMType = "unsigned",
+  corFnc = "bicor",
+  mergeCutHeight = 0.25,
+  sft_RsquaredCut = 0.85,
+  removeFirst = FALSE,
+  reassignThreshold = 1e-06,
+  maxBlockSize = 25000,
+  nThreads = NULL
+)
 }
 \arguments{
 \item{datExpr}{ Expression data. A matrix (preferred) or 
@@ -28,15 +39,13 @@ module detection should be to module splitting, with 0 least and 4 most sensitiv
 \code{\link[dynamicTreeCut]{cutreeDynamic}} for more details. }
 
 \item{networkType}{ network type. Allowed values are (unique abbreviations of) \code{"unsigned"},
-\code{"signed"}, \code{"signed hybrid"}. See \code{\link{adjacency}}. }
+\code{"signed"}, \code{"signed hybrid"}. See \code{\link[WGCNA]{adjacency}}. }
 
 \item{TOMType}{ one of \code{"none"}, \code{"unsigned"}, \code{"signed"}, \code{"signed Nowick"},
 \code{"unsigned 2"}, \code{"signed 2"} and \code{"signed Nowick 2"}. If \code{"none"}, adjacency
-will be used for clustering. See \code{\link{TOMsimilarityFromExpr}} for details.}
+will be used for clustering. See \code{\link[WGCNA]{TOMsimilarityFromExpr}} for details.}
 
-\item{corFnc}{ character string specifying the function to be used to calculate co-expression
-similarity for correlation networks. 
-Defaults to Pearson correlation. Any function returning values between -1 and 1 can be used. }
+\item{corFnc}{the correlation function to be used in adjacency calculation. }
 
 \item{mergeCutHeight}{ dendrogram cut height for module merging. }
 
@@ -44,11 +53,19 @@ Defaults to Pearson correlation. Any function returning values between -1 and 1 
 index R^2.
 Default is 0.80.}
 
+\item{removeFirst}{ should the first bin be removed from the connectivity histogram? }
+
 \item{reassignThreshold}{ p-value ratio threshold for reassigning genes between modules. See Details. }
 
 \item{maxBlockSize}{integer giving maximum block size for module detection. Ignored if \code{blocks}
 above is non-NULL. Otherwise, if the number of genes in \code{datExpr} exceeds \code{maxBlockSize}, genes
 will be pre-clustered into blocks whose size should not exceed \code{maxBlockSize}. }
+
+\item{nThreads}{ non-negative integer specifying the number of parallel threads to be used by certain
+parts of correlation calculations. This option only has an effect on systems on which a POSIX thread
+library is available (which currently includes Linux and Mac OSX, but excludes Windows). 
+If zero, the number of online processors will be used if it can be determined dynamically, otherwise
+correlation calculations will use 2 threads. }
 }
 \value{
 Returns a lists containing network input parameters used 
@@ -65,8 +82,8 @@ This is a wrapper for WGCNA.
 sample_dat_dir<-system.file("extdata", "sample_dat.Rdata", 
 package = "GmicR", mustWork = TRUE)
 load(sample_dat_dir)
-# GMIC_Builder<-Auto_WGCNA(sample_dat, mergeCutHeight = 0.35, 
-# minModuleSize = 10)
+GMIC_Builder<-Auto_WGCNA(sample_dat, mergeCutHeight = 0.35, 
+minModuleSize = 10)
 }
 \seealso{
 \code{\link[WGCNA]{blockwiseModules}}
